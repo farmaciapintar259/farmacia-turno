@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Farmacia de Turno</title>
 
-<!-- Fuente futurista -->
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
 
 <style>
@@ -102,6 +101,16 @@ button:hover {
     text-decoration: none;
     margin: 5px 0;
 }
+
+#listaTurnos {
+    list-style: none;
+    padding: 0;
+}
+
+#listaTurnos li {
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(0,255,255,0.1);
+}
 </style>
 </head>
 
@@ -117,7 +126,7 @@ button:hover {
 
 <div class="container">
     <div class="info">
-        <div id="farmaciaNombre"></div>
+        <div id="farmaciaNombre" style="font-weight: bold; color: cyan; font-size: 1.5em;"></div>
         <div id="farmaciaDireccion"></div>
         <div id="farmaciaTelefono"></div>
     </div>
@@ -152,8 +161,9 @@ const farmacias = {
 function obtenerFarmacia(dia, mes) {
     const año = new Date().getFullYear();
     const fecha = new Date(año, mes - 1, dia);
-    const diaSemana = fecha.getDay();
+    const diaSemana = fecha.getDay(); // 0: Domingo, 1: Lunes... 6: Sábado
 
+    // 1. LUNES A VIERNES (ORDEN FIJO)
     const fijos = {
         1: 'MITRE',
         2: 'SARMIENTO',
@@ -164,14 +174,25 @@ function obtenerFarmacia(dia, mes) {
 
     if (diaSemana >= 1 && diaSemana <= 5) return fijos[diaSemana];
 
-    const rotacion = ['VAZQUEZ', 'PINTAR', 'MITRE', 'CALPE', 'SARMIENTO'];
-
-    let contador = 0;
-    for (let d = new Date(año, 0, 1); d <= fecha; d.setDate(d.getDate() + 1)) {
-        if (d.getDay() === diaSemana) contador++;
+    // 2. SÁBADOS (Ciclo: Mitre -> Calpe -> Sarmiento -> Vázquez -> Pintar)
+    if (diaSemana === 6) {
+        const sabados = ['MITRE', 'CALPE', 'SARMIENTO', 'VAZQUEZ', 'PINTAR'];
+        const fechaBaseSab = new Date(2026, 4, 2); // Sábado 2 de Mayo como referencia
+        const semanasPasadas = Math.floor((fecha - fechaBaseSab) / (7 * 24 * 60 * 60 * 1000));
+        let indice = semanasPasadas % 5;
+        if (indice < 0) indice += 5; // Manejo de fechas anteriores
+        return sabados[indice];
     }
 
-    return rotacion[(contador - 1) % 5];
+    // 3. DOMINGOS (Ciclo: Vázquez -> Pintar -> Mitre -> Calpe -> Sarmiento)
+    if (diaSemana === 0) {
+        const domingos = ['VAZQUEZ', 'PINTAR', 'MITRE', 'CALPE', 'SARMIENTO'];
+        const fechaBaseDom = new Date(2026, 4, 3); // Domingo 3 de Mayo como referencia
+        const semanasPasadas = Math.floor((fecha - fechaBaseDom) / (7 * 24 * 60 * 60 * 1000));
+        let indice = semanasPasadas % 5;
+        if (indice < 0) indice += 5;
+        return domingos[indice];
+    }
 }
 
 function mostrarTurnoHoy() {
@@ -195,7 +216,8 @@ function generarCalendarioMes() {
 
     let hoy = new Date();
     let mes = hoy.getMonth() + 1;
-    let dias = new Date(hoy.getFullYear(), mes, 0).getDate();
+    let año = hoy.getFullYear();
+    let dias = new Date(año, mes, 0).getDate();
 
     for (let d = 1; d <= dias; d++) {
         let farmacia = obtenerFarmacia(d, mes);
