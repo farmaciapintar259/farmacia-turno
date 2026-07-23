@@ -5,22 +5,30 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Farmacia de Turno</title>
 
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
-
 <style>
 body {
     margin: 0;
-    font-family: 'Orbitron', sans-serif;
+    font-family: Arial, sans-serif; /* <-- AQUÍ CAMBIAMOS LA LETRA A ARIAL */
     background: radial-gradient(circle at top, #0f2027, #203a43, #2c5364);
     color: white;
     text-align: center;
 }
 
 h1 {
-    padding: 20px;
+    padding-top: 20px;
+    margin-bottom: 5px;
     font-size: 2em;
     color: cyan;
     text-shadow: 0 0 10px cyan;
+}
+
+/* Estilo para el subtítulo */
+.subtitulo {
+    font-size: 0.75em;
+    color: #a0aec0;
+    margin-top: 0;
+    margin-bottom: 10px;
+    padding: 0 10px;
 }
 
 .container {
@@ -39,12 +47,31 @@ h1 {
     margin-bottom: 20px;
 }
 
+/* Estilos para el bloque del temporizador */
+.caja-temporizador {
+    margin: 15px 0;
+    padding: 10px;
+    background: rgba(0, 255, 255, 0.1);
+    border: 1px solid rgba(0, 255, 255, 0.3);
+    border-radius: 10px;
+    font-size: 0.85em;
+}
+
+.contador-reloj {
+    color: cyan;
+    font-weight: bold;
+    font-size: 1.2em;
+    margin-top: 5px;
+    text-shadow: 0 0 5px cyan;
+}
+
 button {
     display: block;
     width: 100%;
     margin: 10px 0;
     padding: 12px;
     font-size: 1em;
+    font-family: Arial, sans-serif; /* Para asegurarnos que los botones también usen Arial */
     border-radius: 10px;
     border: none;
     background: linear-gradient(45deg, #00f2fe, #4facfe);
@@ -123,12 +150,19 @@ button:hover {
 </div>
 
 <h1>Farmacia de Turno</h1>
+<p class="subtitulo">(LOS TURNOS ARRANCAN A LAS 8AM Y TERMINAN A LAS 8AM DEL DÍA SIGUIENTE)</p>
 
 <div class="container">
     <div class="info">
         <div id="farmaciaNombre" style="font-weight: bold; color: cyan; font-size: 1.5em;"></div>
         <div id="farmaciaDireccion"></div>
         <div id="farmaciaTelefono"></div>
+    </div>
+
+    <!-- Caja para el temporizador -->
+    <div class="caja-temporizador">
+        <div>Siguiente turno (<span id="siguienteFarmacia" style="color: #fff; font-weight: bold;"></span>):</div>
+        <div class="contador-reloj" id="contadorReloj">00h 00m 00s</div>
     </div>
 
     <button id="llamar">📞 Llamar</button>
@@ -158,8 +192,8 @@ const farmacias = {
     'CALPE': { direccion: 'Av. Balbín 3554', telefono: '4455-1514', mapa: 'https://maps.google.com/?q=Av.+Balbin+3554' }
 };
 
-function obtenerFarmacia(dia, mes) {
-    const año = new Date().getFullYear();
+function obtenerFarmacia(dia, mes, año) {
+    año = año || new Date().getFullYear();
     const fecha = new Date(año, mes - 1, dia);
     const diaSemana = fecha.getDay(); // 0: Domingo, 1: Lunes... 6: Sábado
 
@@ -180,7 +214,7 @@ function obtenerFarmacia(dia, mes) {
         const fechaBaseSab = new Date(2026, 4, 2); // Sábado 2 de Mayo como referencia
         const semanasPasadas = Math.floor((fecha - fechaBaseSab) / (7 * 24 * 60 * 60 * 1000));
         let indice = semanasPasadas % 5;
-        if (indice < 0) indice += 5; // Manejo de fechas anteriores
+        if (indice < 0) indice += 5;
         return sabados[indice];
     }
 
@@ -195,19 +229,56 @@ function obtenerFarmacia(dia, mes) {
     }
 }
 
+// FUNCIÓN PARA CALCULAR FECHAS SEGÚN LA REGLA DE LAS 8 AM
+function obtenerFechasTurno() {
+    let ahora = new Date();
+    let fechaTurnoActual = new Date(ahora);
+    let fechaTurnoSiguiente = new Date(ahora);
+
+    if (ahora.getHours() < 8) {
+        fechaTurnoActual.setDate(fechaTurnoActual.getDate() - 1);
+        fechaTurnoSiguiente.setHours(8, 0, 0, 0);
+    } else {
+        fechaTurnoSiguiente.setDate(fechaTurnoSiguiente.getDate() + 1);
+        fechaTurnoSiguiente.setHours(8, 0, 0, 0);
+    }
+
+    return { actual: fechaTurnoActual, siguiente: fechaTurnoSiguiente };
+}
+
 function mostrarTurnoHoy() {
-    let hoy = new Date();
-    let farmaciaHoy = obtenerFarmacia(hoy.getDate(), hoy.getMonth() + 1);
+    let fechas = obtenerFechasTurno();
+    
+    let farmaciaHoy = obtenerFarmacia(fechas.actual.getDate(), fechas.actual.getMonth() + 1, fechas.actual.getFullYear());
+    let farmaciaManana = obtenerFarmacia(fechas.siguiente.getDate(), fechas.siguiente.getMonth() + 1, fechas.siguiente.getFullYear());
 
     document.getElementById('farmaciaNombre').innerText = farmaciaHoy;
     document.getElementById('farmaciaDireccion').innerText = farmacias[farmaciaHoy].direccion;
     document.getElementById('farmaciaTelefono').innerText = farmacias[farmaciaHoy].telefono;
+    document.getElementById('siguienteFarmacia').innerText = farmaciaManana;
 
     document.getElementById('llamar').onclick = () =>
         window.location.href = `tel:${farmacias[farmaciaHoy].telefono}`;
 
     document.getElementById('verMapa').onclick = () =>
         window.open(farmacias[farmaciaHoy].mapa);
+}
+
+function actualizarContador() {
+    let fechas = obtenerFechasTurno();
+    let ahora = new Date();
+    let diferencia = fechas.siguiente - ahora;
+
+    if (diferencia <= 0) {
+        mostrarTurnoHoy();
+        return;
+    }
+
+    let horas = Math.floor((diferencia % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    let minutos = Math.floor((diferencia % (1000 * 60 * 60)) / (1000 * 60));
+    let segundos = Math.floor((diferencia % (1000 * 60)) / 1000);
+
+    document.getElementById('contadorReloj').innerText = `${horas}hs ${minutos}m ${segundos}s`;
 }
 
 function generarCalendarioMes() {
@@ -220,7 +291,7 @@ function generarCalendarioMes() {
     let dias = new Date(año, mes, 0).getDate();
 
     for (let d = 1; d <= dias; d++) {
-        let farmacia = obtenerFarmacia(d, mes);
+        let farmacia = obtenerFarmacia(d, mes, año);
         let li = document.createElement('li');
         li.innerText = `${d}/${mes} - ${farmacia}`;
         lista.appendChild(li);
@@ -230,7 +301,12 @@ function generarCalendarioMes() {
 }
 
 document.getElementById('verCalendario').onclick = generarCalendarioMes;
-document.addEventListener('DOMContentLoaded', mostrarTurnoHoy);
+
+document.addEventListener('DOMContentLoaded', () => {
+    mostrarTurnoHoy();
+    actualizarContador();
+    setInterval(actualizarContador, 1000);
+});
 </script>
 
 </body>
